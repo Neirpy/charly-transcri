@@ -355,8 +355,14 @@ async def websocket_transcribe(websocket: WebSocket):
             pass
 
 
-# Montage des fichiers statiques de la PWA
+# Montage des fichiers statiques de la PWA (compatible chemins / et /static)
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+if (STATIC_DIR / "css").exists():
+    app.mount("/css", StaticFiles(directory=str(STATIC_DIR / "css")), name="css")
+if (STATIC_DIR / "js").exists():
+    app.mount("/js", StaticFiles(directory=str(STATIC_DIR / "js")), name="js")
+if (STATIC_DIR / "icons").exists():
+    app.mount("/icons", StaticFiles(directory=str(STATIC_DIR / "icons")), name="icons")
 
 
 @app.get("/")

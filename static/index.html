@@ -9,16 +9,21 @@
   <meta name="description" content="Application de transcription vocale en direct et haute accessibilité (a11y) pour personnes sourdes et malentendantes. Fonctionne sur iPad et PC.">
   <meta name="theme-color" content="#0b0f19">
 
+  <!-- Google Fonts préchargées -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+
   <!-- PWA & Compatibilité iOS / iPadOS Safari -->
-  <link rel="manifest" href="manifest.json">
+  <link rel="manifest" href="/manifest.json">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Charly Transcri">
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-  <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <link rel="icon" type="image/svg+xml" href="/icons/icon.svg">
 
-  <!-- Stylesheets -->
-  <link rel="stylesheet" href="css/style.css">
+  <!-- Stylesheets (support absolu & relatif) -->
+  <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
   <div class="app-container" id="appContainer">
@@ -26,7 +31,7 @@
     <!-- EN-TÊTE PRINCIPAL -->
     <header class="app-header" role="banner">
       <div class="brand-section">
-        <img src="icons/icon.svg" alt="Logo Charly Transcri" class="app-logo">
+        <img src="/icons/icon.svg" alt="Logo Charly Transcri" class="app-logo">
         <div class="app-title-group">
           <h1>Charly Transcri</h1>
           <span class="engine-badge" id="engineBadge" title="Moteur de transcription actif">Initialisation...</span>
@@ -311,7 +316,7 @@
   </div>
 
   <!-- Scripts -->
-  <script src="js/audio-processor.js"></script>
-  <script src="js/app.js"></script>
+  <script src="/js/audio-processor.js"></script>
+  <script src="/js/app.js"></script>
 </body>
 </html>
