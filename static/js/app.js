@@ -144,13 +144,29 @@ class CharlyApp {
     this.pipVideo = document.getElementById('pipVideo');
     if (this.pipCanvas) {
       this.pipCanvasCtx = this.pipCanvas.getContext('2d');
+      this.startPipCanvasAnimation();
     }
 
-    // Détection de fermeture du PiP vidéo standard
-    if (this.pipVideo) {
+    if (this.pipVideo && this.pipCanvas) {
+      // Préparer le flux vidéo dès le chargement
+      try {
+        if (this.pipCanvas.captureStream) {
+          const stream = this.pipCanvas.captureStream(15);
+          this.pipVideo.srcObject = stream;
+        }
+      } catch (e) {}
+
+      // Écouteur pour iPadOS WebKit
+      if ('webkitPresentationMode' in this.pipVideo) {
+        this.pipVideo.addEventListener('webkitpresentationmodechanged', () => {
+          this.isPipActive = (this.pipVideo.webkitPresentationMode === 'picture-in-picture');
+          this.updatePipButtonState();
+        });
+      }
+
+      // Détection standard de sortie du PiP
       this.pipVideo.addEventListener('leavepictureinpicture', () => {
         this.isPipActive = false;
-        this.stopPipCanvasAnimation();
         this.updatePipButtonState();
       });
     }
@@ -301,24 +317,72 @@ class CharlyApp {
 
     try {
       this.startPipCanvasAnimation();
-      
-      const stream = this.pipCanvas.captureStream(15);
-      this.pipVideo.srcObject = stream;
-      await this.pipVideo.play();
 
-      if (document.pictureInPictureElement) {
-        await document.exitPictureInPicture();
+      if (!this.pipVideo.srcObject && this.pipCanvas.captureStream) {
+        this.pipVideo.srcObject = this.pipCanvas.captureStream(15);
       }
 
-      await this.pipVideo.requestPictureInPicture();
-      this.isPipActive = true;
-      this.updatePipButtonState();
-      this.showToast("Fenêtre flottante Picture-in-Picture active");
+      // Déclenchement synchrone dans le geste utilisateur
+      const playPromise = this.pipVideo.play();
+      if (playPromise && playPromise.catch) {
+        playPromise.catch(() => {});
+      }
+
+      // 1. Détection et activation WebKit iPadOS
+      if (typeof this.pipVideo.webkitSetPresentationMode === 'function') {
+        this.pipVideo.webkitSetPresentationMode('picture-in-picture');
+        this.isPipActive = true;
+        this.updatePipButtonState();
+        this.showToast("Fenêtre flottante active sur iPad");
+        return;
+      }
+
+      // 2. Détection standard HTML5 requestPictureInPicture
+      if (this.pipVideo.requestPictureInPicture) {
+        await this.pipVideo.requestPictureInPicture();
+        this.isPipActive = true;
+        this.updatePipButtonState();
+        this.showToast("Fenêtre flottante Picture-in-Picture active");
+        return;
+      }
+
+      throw new Error("L'API Picture-in-Picture n'est pas disponible.");
     } catch (err) {
-      console.error("Erreur Canvas PiP :", err);
-      this.stopPipCanvasAnimation();
-      this.showToast("Impossible d'activer le mode flottant : " + err.message, "danger");
+      console.warn("Échec activation PiP vidéo :", err);
+      
+      // Guide d'aide multitâche iPad
+      const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+      if (isIos) {
+        this.showIpadMultitaskGuide();
+      } else {
+        this.showToast("Mode flottant restreint par le navigateur : " + err.message, "warning");
+      }
     }
+  }
+
+  showIpadMultitaskGuide() {
+    this.dom.modalTitle.textContent = "📱 Multitâche sur iPad";
+    this.dom.modalBody.innerHTML = `
+      <p>Pour garder Charly Transcri visible pendant que vous travaillez sur votre iPad (Word, Notes, etc.) :</p>
+      <div class="guide-steps" style="margin-top:10px; text-align:left;">
+        <div class="step-card">
+          <strong>Option 1 : Slide Over (Fenêtre Flottante iPad)</strong>
+          <p>Touchez les <strong>trois petits points (…)</strong> tout en haut de l'écran d'iPad, puis sélectionnez <strong>Slide Over</strong>. L'application devient un tiroir flottant que vous pouvez glisser par-dessus n'importe quelle application !</p>
+        </div>
+        <div class="step-card">
+          <strong>Option 2 : Split View (Écran Partagé 50/50)</strong>
+          <p>Touchez les <strong>trois petits points (…)</strong> et choisissez <strong>Split View</strong> pour afficher vos cours ou vos notes à gauche et la transcription en direct à droite.</p>
+        </div>
+      </div>
+    `;
+    this.dom.modalCancelBtn.style.display = 'none';
+    this.dom.modalConfirmBtn.textContent = "J'ai compris";
+    this.dom.modalConfirmBtn.onclick = () => {
+      this.closeModal();
+      this.dom.modalCancelBtn.style.display = 'inline-flex';
+      this.dom.modalConfirmBtn.textContent = "Confirmer";
+    };
+    this.dom.modalBackdrop.classList.add('active');
   }
 
   exitPictureInPicture() {
@@ -326,10 +390,14 @@ class CharlyApp {
       this.pipWindow.close();
       this.pipWindow = null;
     }
-    if (document.pictureInPictureElement) {
-      document.exitPictureInPicture().catch(() => {});
+    if (this.pipVideo) {
+      if (typeof this.pipVideo.webkitSetPresentationMode === 'function') {
+        this.pipVideo.webkitSetPresentationMode('inline');
+      }
+      if (document.pictureInPictureElement) {
+        document.exitPictureInPicture().catch(() => {});
+      }
     }
-    this.stopPipCanvasAnimation();
     this.isPipActive = false;
     this.updatePipButtonState();
   }

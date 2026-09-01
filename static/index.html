@@ -247,8 +247,8 @@
     </div>
 
     <!-- Éléments cachés pour Picture-in-Picture Flottant (iPad & PC) -->
-    <canvas id="pipCanvas" width="640" height="360" style="display:none; position:fixed; pointer-events:none;"></canvas>
-    <video id="pipVideo" muted playsinline autoplay style="display:none; position:fixed; pointer-events:none;"></video>
+    <canvas id="pipCanvas" width="640" height="360" style="position:fixed; bottom:0; right:0; width:1px; height:1px; opacity:0.01; pointer-events:none; z-index:-1;"></canvas>
+    <video id="pipVideo" muted playsinline webkit-playsinline autoplay style="position:fixed; bottom:0; right:0; width:1px; height:1px; opacity:0.01; pointer-events:none; z-index:-1;"></video>
 
     <!-- MODAL D'INSTALLATION PWA (IPAD / PC) -->
     <div class="modal-backdrop" id="installModal" role="dialog" aria-modal="true" aria-labelledby="installTitle">
