@@ -1,0 +1,16 @@
+============================================================
+CHARLY TRANSCRI - TRANSCRIPTION DU 2026-09-01 à 20:40:03
+============================================================
+
+[20:34:24] mais qu'est-ce qu'il a fait
+[20:35:49] bonjour
+[20:35:51] non non non
+[20:36:02] Dana
+[20:37:16] bonjour j'espère que vous allez bien
+[20:37:27] aujourd'hui je vous présente mon application de transcription de la langue native en texte
+[20:37:39] pour cela j'utilise une API ou un logiciel natif qui me permet d'afficher le contenu en temps réel
+[20:39:07] bonjour aujourd'hui nous allons parler du protocole HTTP alors le protocole HTTP c'est diabolique il permet de faire de nombreuses choses
+[20:39:39] les médias Cruise permettent d'ajuster la taille de la taille de la de la fenêtre afin de permettre de régler adaptivement l'affichage de notre application mobile
+[20:39:42] ou de notre application web
+
+============================================================

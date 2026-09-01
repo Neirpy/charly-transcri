@@ -1,47 +1,59 @@
-# Charly Transcri
+# 🎙️ Charly Transcri - PWA de Transcription Vocale Accessible
 
-Une application de transcription vocale locale (Speech-to-Text) avec un affichage en surimpression (overlay) transparent. Conçue spécialement pour les présentations, cours ou streams nécessitant des sous-titres en direct qui restent toujours au premier plan, tout en enregistrant un historique de la transcription.
+**Charly Transcri** est une application web progressive (PWA) de transcription de la parole en direct, pensée spécifiquement pour accompagner une **personne sourde ou malentendante** au quotidien (cours, réunions, rendez-vous).
 
-## Fonctionnalités
-- 🎤 **Transcription hors ligne** : Utilise le puissant moteur local Vosk et ne nécessite aucune connexion internet.
-- 🪟 **Overlay (Surimpression)** : L'application s'affiche au-dessus de toutes vos fenêtres avec un fond transparent. Parfait pour sous-titrer des cours ou des démonstrations.
-- 💾 **Sauvegarde Automatique** : Génère automatiquement un fichier texte avec l'historique complet de votre transcription lorsque vous arrêtez l'enregistrement.
-- ⚙️ **Interface Personnalisable** :
-  - Choix du microphone
-  - Modification de la couleur et de la taille du texte
-  - Masquage des contrôles pour un affichage minimaliste
-  - Déplacement et redimensionnement libres
+Elle est conçue pour fonctionner comme une **véritable application installée** sur **iPad (iPadOS / Safari)** et sur **PC portable (Lenovo / Windows / Chrome)**.
 
-## Prérequis et Configurations Minimales (PC/Mac)
+---
 
-L'application utilise un modèle d'Intelligence Artificielle de ~1.4 Go qui est chargé en mémoire.
+## 🌟 Nouvelles Fonctionnalités Majeures
 
-- **Système d'exploitation** : Windows 10/11, macOS ou Linux.
-- **Processeur (CPU)** : Processeur moderne (Intel Core i5/Ryzen 5 ou Apple Silicon M1/M2/M3). La transcription Vosk repose uniquement sur le CPU, un bon processeur garantit une transcription fluide et sans décalage.
-- **Mémoire vive (RAM)** : 8 Go minimum (l'application consommera environ 1.5 à 2.5 Go de RAM une fois le modèle chargé).
-- **Espace Disque** : ~2 Go d'espace libre (pour le modèle Vosk et les dépendances Python).
+### 1. 🪟 Mode « Au-dessus de tout » (Fenêtre Flottante / Picture-in-Picture)
+- Un bouton bleu **« Au-dessus de tout »** en haut de page permet de détacher la transcription dans une **fenêtre flottante toujours au premier plan**.
+- **Sur PC (Windows / Mac)** : Utilisez Word, PowerPoint, vos emails ou naviguez sur le web tout en gardant la transcription en surimpression au-dessus de toutes vos fenêtres.
+- **Sur iPad (iPadOS)** : S'ouvre en mode Picture-in-Picture natif flottant au-dessus de vos applications de prise de notes. Vous pouvez aussi utiliser le mode **Split View** ou **Slide Over** d'iPadOS.
 
-## Installation
+### 2. 🎤 Choix du Microphone
+- Dans les **⚙️ Paramètres**, vous pouvez sélectionner le microphone de votre choix :
+  - Microphone intégré (ordinateur ou tablette)
+  - Écouteurs sans fil (AirPods, casques Bluetooth)
+  - Micro-cravate USB ou micro directionnel de conférence
 
-1. Clonez ce dépôt.
-2. Créez un environnement virtuel Python et installez les dépendances (PyQt5, vosk, sounddevice).
-3. Téléchargez le grand modèle Vosk en langue française :
-   ```bash
-   python download_model.py
-   ```
-   *Ce script téléchargera le fichier de 1.4 Go et l'extraira automatiquement dans un dossier `model`.*
+---
 
-## Utilisation
+## 🚀 2 Façons Simples de l'Utiliser
 
-**Pour lancer l'application facilement (recommandé) :**
-- **Sur Mac** : Double-cliquez simplement sur le fichier `start_mac.command`.
-- **Sur Windows** : Double-cliquez simplement sur le fichier `start_windows.bat`.
+### Option A : Déploiement Gratuit sur Vercel (Recommandé pour un usage nomade)
+1. Importez ce dépôt sur **[Vercel](https://vercel.com)** (le fichier `vercel.json` est déjà configuré).
+2. Vous obtenez un lien sécurisé en HTTPS (ex: `https://charly-transcri.vercel.app`).
+3. La personne l'ouvre sur son iPad ou son PC :
+   - **Microphone 100% autorisé immédiatement**
+   - **Installation en 1 clic** (bouton *« 📲 Installer l'app »*)
+   - Fonctionne partout (Wi-Fi, 4G, 5G) sans serveur allumé.
 
-*Si vous préférez utiliser le terminal :*
-```bash
-python main.py
-```
-- Choisissez votre microphone dans la liste déroulante.
-- Cliquez sur **Démarrer**.
-- Vous pouvez masquer les options avec le bouton **⚙️ Menu**, déplacer la fenêtre avec **✥ Déplacer**, ou la redimensionner avec **↘ Étirer**.
-- Cliquez sur **Arrêter** pour stopper le microphone. Votre transcription complète sera automatiquement sauvegardée dans le dossier `transcriptions/` avec la date et l'heure.
+### Option B : Lancement Local sur votre Ordinateur
+1. **Sur Windows (Lenovo)** : Double-cliquez sur `start_windows.bat` (ou lancez `python main.py`).
+2. Votre navigateur s'ouvre automatiquement sur `http://localhost:8000`.
+3. Cliquez sur **« 📲 Installer l'app »** pour créer le raccourci Windows.
+
+---
+
+## 🎯 Moteurs de Transcription Intégrés
+
+- **Par défaut (Sans clé d'API - 100% Gratuit)** : Utilise la reconnaissance vocale native du système (dictée Siri sur iPad, Google Speech sur Chrome).
+- **Optionnel (Haute précision par IA)** : Collez une clé Google Gemini gratuite dans les **⚙️ Paramètres** de l'application pour bénéficier de la transcription Gemini Live ultra-rapide avec filtrage des bruits.
+
+---
+
+## ♿ Accessibilité (a11y) & Ergonomie
+
+| Fonctionnalité | Description |
+| :--- | :--- |
+| **🪟 Fenêtre Flottante** | Bouton *« Au-dessus de tout »* pour garder la transcription visible pendant que vous travaillez. |
+| **🎤 Choix du Micro** | Sélection facile du micro externe / AirPods dans les réglages. |
+| **📜 Défilement Intelligent** | Auto-scroll continu qui se fige si l'on remonte relire un passage. |
+| **👁️ Vumètre Visuel** | Onde sonore pour vérifier en direct si le micro capte bien la voix. |
+| **🔠 Taille de Police Ajustable** | Boutons `A-` / `A+` de 16px à 48px pour une lecture sans fatigue. |
+| **🎨 4 Thèmes de Contraste** | Sombre OLED, Clair, Jaune sur Noir (malvoyants), Sépia. |
+| **💡 Maintien de l'Écran Allumé** | Empêche l'iPad ou le PC de se mettre en veille. |
+| **💾 Export .txt & Copie** | Téléchargement horodaté compatible avec l'application *Fichiers* d'iPadOS et Windows. |

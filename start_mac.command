@@ -5,10 +5,12 @@ cd "$(dirname "$0")"
 if [ -d ".venv" ]; then
     source .venv/bin/activate
 else
-    echo "L'environnement virtuel .venv n'a pas été trouvé."
-    echo "Veuillez d'abord installer le projet correctement."
-    exit 1
+    echo "Création de l'environnement virtuel..."
+    python3 -m venv .venv
+    source .venv/bin/activate
+    pip install -r requirements.txt
 fi
 
-# Lance l'application
-python main.py
+# Lance le serveur PWA
+echo "Lancement du serveur Charly Transcri PWA..."
+python server.py

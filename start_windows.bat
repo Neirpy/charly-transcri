@@ -3,9 +3,13 @@ cd /d "%~dp0"
 
 IF EXIST ".venv\Scripts\activate.bat" (
     call .venv\Scripts\activate.bat
-    python main.py
 ) ELSE (
-    echo L'environnement virtuel .venv n'a pas été trouvé.
-    echo Veuillez d'abord installer le projet correctement.
-    pause
+    echo Création de l'environnement virtuel .venv...
+    python -m venv .venv
+    call .venv\Scripts\activate.bat
+    pip install -r requirements.txt
 )
+
+echo Lancement du serveur Charly Transcri PWA...
+python server.py
+pause
