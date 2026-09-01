@@ -1,13 +1,14 @@
 /* Service Worker pour Charly Transcri PWA */
-const CACHE_NAME = 'charly-transcri-v2.0.0';
+const CACHE_NAME = 'charly-transcri-v2.1.0';
 const ASSETS_TO_CACHE = [
-  '/',
-  '/manifest.json',
-  '/static/manifest.json',
-  '/static/css/style.css',
-  '/static/js/app.js',
-  '/static/js/audio-processor.js',
-  '/static/icons/icon.svg'
+  './',
+  'index.html',
+  'manifest.json',
+  'css/style.css',
+  'js/app.js',
+  'js/audio-processor.js',
+  'icons/icon.svg',
+  'icons/apple-touch-icon.png'
 ];
 
 // Installation : Mise en cache initiale de l'App Shell
