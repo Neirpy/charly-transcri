@@ -164,6 +164,38 @@ class CharlyApp {
         });
       }
 
+      // Contrôle du micro via le bouton Play/Pause du widget vidéo natif d'Apple
+      this.pipVideo.addEventListener('play', () => {
+        if (this.isPipActive && !this.isRecording) {
+          this.startRecording();
+        }
+      });
+
+      this.pipVideo.addEventListener('pause', () => {
+        if (this.isPipActive && this.isRecording) {
+          this.stopRecording();
+        }
+      });
+
+      // MediaSession API pour intégration avec les commandes matérielles et logicielles iPad
+      if ('mediaSession' in navigator) {
+        try {
+          navigator.mediaSession.metadata = new MediaMetadata({
+            title: "Charly Transcri",
+            artist: "Transcription en direct",
+            album: "Accessibilité Vocale"
+          });
+
+          navigator.mediaSession.setActionHandler('play', () => {
+            if (!this.isRecording) this.startRecording();
+          });
+
+          navigator.mediaSession.setActionHandler('pause', () => {
+            if (this.isRecording) this.stopRecording();
+          });
+        } catch (e) {}
+      }
+
       // Détection standard de sortie du PiP
       this.pipVideo.addEventListener('leavepictureinpicture', () => {
         this.isPipActive = false;
@@ -567,9 +599,9 @@ class CharlyApp {
       ctx.fillText(this.isRecording ? '⏸' : '🎤', cx, cy + 5);
 
       // Texte de statut sous le micro
-      ctx.font = '10px sans-serif';
-      ctx.fillStyle = this.isRecording ? '#f87171' : '#94a3b8';
-      ctx.fillText(this.isRecording ? 'ÉCOUTE EN DIRECT' : 'MICRO EN PAUSE', cx, h - 4);
+      ctx.font = 'bold 11px sans-serif';
+      ctx.fillStyle = this.isRecording ? '#f87171' : '#34d399';
+      ctx.fillText(this.isRecording ? '● ÉCOUTE EN DIRECT (Touchez ⏯ pour couper)' : '○ MICRO EN PAUSE (Touchez ⏯ pour écouter)', cx, h - 6);
       ctx.textAlign = 'left'; // Reset
 
       // Vumètre visuel tout en bas
