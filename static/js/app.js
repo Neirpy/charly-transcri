@@ -106,25 +106,34 @@ class CharlyApp {
   }
 
   // --- 1. ÉNUMÉRATION & CHOIX DU MICROPHONE ---
-  async enumerateAudioDevices() {
+  async enumerateAudioDevices(requestPermission = false) {
     if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
       console.warn("Énumération des périphériques audio non supportée.");
       return;
     }
 
     try {
+      // Si demandé ou si les labels sont vides, obtenir brièvement l'accès pour débloquer les vrais noms (AirPods, USB...)
+      if (requestPermission && navigator.mediaDevices.getUserMedia) {
+        try {
+          const tempStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          tempStream.getTracks().forEach((t) => t.stop());
+        } catch (e) {}
+      }
+
       const devices = await navigator.mediaDevices.enumerateDevices();
       const audioInputs = devices.filter((d) => d.kind === 'audioinput');
       
       const select = this.dom.micDeviceSelect;
       if (!select) return;
 
-      select.innerHTML = '<option value="default">Microphone par défaut</option>';
+      select.innerHTML = '<option value="default">🎙️ Microphone par défaut du système</option>';
 
       audioInputs.forEach((device, index) => {
         const option = document.createElement('option');
         option.value = device.deviceId;
-        option.textContent = device.label || `Microphone ${index + 1}`;
+        const label = device.label ? `🎤 ${device.label}` : `Microphone ${index + 1}`;
+        option.textContent = label;
         if (device.deviceId === this.selectedMicId) {
           option.selected = true;
         }
@@ -132,7 +141,7 @@ class CharlyApp {
       });
 
       // Écouter les branchements/débranchements d'écouteurs ou micros
-      navigator.mediaDevices.ondevicechange = () => this.enumerateAudioDevices();
+      navigator.mediaDevices.ondevicechange = () => this.enumerateAudioDevices(false);
     } catch (e) {
       console.warn("Impossible d'énumérer les micros :", e);
     }
@@ -1418,20 +1427,23 @@ class CharlyApp {
   }
 
   // --- 17. PARAMÈTRES ---
-  openSettingsModal() {
+  async openSettingsModal() {
     this.dom.engineSelect.value = this.selectedEngine;
     this.dom.geminiApiKeyInput.value = this.geminiApiKey;
     this.dom.languageSelect.value = this.language;
     this.dom.wakeLockCheckbox.checked = this.enableWakeLock;
-    this.enumerateAudioDevices();
     this.dom.settingsModal.classList.add('active');
+    await this.enumerateAudioDevices(true);
   }
 
   closeSettingsModal() {
     this.dom.settingsModal.classList.remove('active');
   }
 
-  saveSettings() {
+  async saveSettings() {
+    const prevMic = this.selectedMicId;
+    const prevEngine = this.selectedEngine;
+
     this.selectedEngine = this.dom.engineSelect.value;
     this.geminiApiKey = this.dom.geminiApiKeyInput.value.trim();
     this.selectedMicId = this.dom.micDeviceSelect.value;
@@ -1447,6 +1459,15 @@ class CharlyApp {
     this.updateActiveEngine();
     this.closeSettingsModal();
     this.showToast("Paramètres enregistrés !");
+
+    // Si on enregistre déjà et que le micro ou le moteur a été modifié, basculer immédiatement
+    if (this.isRecording && (prevMic !== this.selectedMicId || prevEngine !== this.selectedEngine)) {
+      this.stopRecording();
+      setTimeout(() => {
+        this.startRecording();
+        this.showToast("Microphone basculé en direct !");
+      }, 200);
+    }
   }
 
   // --- 18. MODALES & TOASTS ---
