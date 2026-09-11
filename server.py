@@ -104,6 +104,41 @@ async def save_transcription(data: dict):
         return {"status": "error", "message": str(e)}
 
 
+@app.get("/api/translate")
+async def translate_endpoint(text: str, sl: str = "fr", tl: str = "uk"):
+    """Relais de traduction pour éviter les problèmes de CORS."""
+    import urllib.request
+    import urllib.parse
+    clean_text = text.strip()
+    if not clean_text:
+        return {"error": "Texte vide"}
+
+    # 1. Essai Google Translate
+    try:
+        url = f"https://translate.googleapis.com/translate_a/single?client=gtx&sl={urllib.parse.quote(sl)}&tl={urllib.parse.quote(tl)}&dt=t&q={urllib.parse.quote(clean_text)}"
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            if data and data[0]:
+                translated = "".join(item[0] for item in data[0] if item and item[0])
+                return {"translated": translated}
+    except Exception as e:
+        pass
+
+    # 2. Repli MyMemory
+    try:
+        mm_url = f"https://api.mymemory.translated.net/get?q={urllib.parse.quote(clean_text)}&langpair={urllib.parse.quote(sl)}|{urllib.parse.quote(tl)}"
+        req = urllib.request.Request(mm_url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            if data.get("responseData", {}).get("translatedText"):
+                return {"translated": data["responseData"]["translatedText"]}
+    except Exception as e:
+        pass
+
+    return {"error": "Échec de traduction"}
+
+
 async def handle_gemini_transcription(websocket: WebSocket, sample_rate: int = 16000):
     """Gère la transcription en temps réel avec l'API Google Gemini Live."""
     from google import genai

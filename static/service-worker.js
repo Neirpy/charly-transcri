@@ -1,5 +1,5 @@
 /* Service Worker pour Charly Transcri PWA */
-const CACHE_NAME = 'charly-transcri-v2.2.0';
+const CACHE_NAME = 'charly-transcri-v2.3.0';
 const ASSETS_TO_CACHE = [
   './',
   'index.html',
@@ -41,12 +41,18 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
+  // CRITIQUE : Ne jamais intercepter les requêtes externes / cross-origin (Google Translate, etc.)
+  // Cela évite l'erreur CORS bloquante "net::ERR_FAILED" causée par le Service Worker.
+  if (url.origin !== self.location.origin) {
+    return;
+  }
+
   // Ignorer les requêtes WebSocket et API dynamiques
   if (url.pathname.startsWith('/ws') || url.pathname.startsWith('/api')) {
     return;
   }
 
-  // Pour les pages et ressources statiques
+  // Pour les pages et ressources statiques locales
   event.respondWith(
     fetch(event.request)
       .then((networkResponse) => {
@@ -59,7 +65,7 @@ self.addEventListener('fetch', (event) => {
         return networkResponse;
       })
       .catch(() => {
-        // En cas d'absence de réseau, repli sur le cache
+        // En cas d'absence de réseau, repli sur le cache local
         return caches.match(event.request).then((cachedResponse) => {
           if (cachedResponse) {
             return cachedResponse;
@@ -67,6 +73,7 @@ self.addEventListener('fetch', (event) => {
           if (event.request.mode === 'navigate') {
             return caches.match('/');
           }
+          return new Response('Ressource hors ligne', { status: 503, statusText: 'Offline' });
         });
       })
   );

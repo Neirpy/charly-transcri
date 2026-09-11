@@ -1351,32 +1351,69 @@ class CharlyApp {
     }
   }
 
-  // --- SERVICE DE TRADUCTION AUTONOME (SANS CLÉ API) ---
+  // --- SERVICE DE TRADUCTION AUTONOME MULTI-TIER (SANS CLÉ API) ---
   async translateText(text, sourceLang = 'fr', targetLang = 'uk') {
     if (!text || !text.trim()) return '';
-    const cleanText = text.trim();
+    let cleanText = text.trim();
+
+    // Ignorer si le texte contient déjà un message d'état ou d'erreur
+    if (cleanText.includes('⚠️') || cleanText.includes('Impossible de traduire') || cleanText.includes('Traduction')) {
+      return '';
+    }
+
     const cacheKey = `${sourceLang}:${targetLang}:${cleanText}`;
     if (this.translationCache.has(cacheKey)) {
       return this.translationCache.get(cacheKey);
     }
 
+    // Tier 1 : API interne locale / Vercel (/api/translate) - Zéro problème de CORS garanti
     try {
-      const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${encodeURIComponent(sourceLang)}&tl=${encodeURIComponent(targetLang)}&dt=t&q=${encodeURIComponent(cleanText)}`;
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error(`Erreur réseau: ${response.status}`);
+      const apiUrl = `/api/translate?text=${encodeURIComponent(cleanText)}&sl=${encodeURIComponent(sourceLang)}&tl=${encodeURIComponent(targetLang)}`;
+      const res = await fetch(apiUrl);
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.translated) {
+          this.translationCache.set(cacheKey, data.translated);
+          return data.translated;
+        }
       }
-      const data = await response.json();
-      if (data && data[0] && Array.isArray(data[0])) {
-        const translated = data[0].map((item) => item[0]).filter(Boolean).join('');
-        this.translationCache.set(cacheKey, translated);
-        return translated;
-      }
-      throw new Error("Format de réponse inattendu");
-    } catch (err) {
-      console.warn("Erreur traduction autonome :", err);
-      throw err;
+    } catch (e) {
+      // Si l'API locale / Vercel n'est pas joignable, passer aux fallbacks directs
     }
+
+    // Tier 2 : MyMemory Translated (Support CORS * natif)
+    try {
+      const mmUrl = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(cleanText)}&langpair=${encodeURIComponent(sourceLang)}|${encodeURIComponent(targetLang)}`;
+      const mmRes = await fetch(mmUrl);
+      if (mmRes.ok) {
+        const mmData = await mmRes.json();
+        if (mmData?.responseData?.translatedText) {
+          const translated = mmData.responseData.translatedText;
+          this.translationCache.set(cacheKey, translated);
+          return translated;
+        }
+      }
+    } catch (e) {
+      console.warn("Échec MyMemory :", e);
+    }
+
+    // Tier 3 : Google Translate GTX direct
+    try {
+      const gUrl = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${encodeURIComponent(sourceLang)}&tl=${encodeURIComponent(targetLang)}&dt=t&q=${encodeURIComponent(cleanText)}`;
+      const gRes = await fetch(gUrl);
+      if (gRes.ok) {
+        const gData = await gRes.json();
+        if (gData && gData[0] && Array.isArray(gData[0])) {
+          const translated = gData[0].map((item) => item[0]).filter(Boolean).join('');
+          this.translationCache.set(cacheKey, translated);
+          return translated;
+        }
+      }
+    } catch (e) {
+      console.warn("Échec Google GTX direct :", e);
+    }
+
+    throw new Error("Toutes les options de traduction ont échoué.");
   }
 
   async toggleEntryTranslation(entryId) {
@@ -1495,9 +1532,11 @@ class CharlyApp {
       const text = selection.toString().trim();
       if (!text || text.length < 2 || text.length > 250) return;
 
+      // Ne déclencher la traduction que si la sélection se trouve dans le texte prononcé (.entry-text)
       const range = selection.getRangeAt(0);
       const container = range.commonAncestorContainer;
-      if (!this.dom.transcriptWrapper.contains(container)) return;
+      const element = container.nodeType === 1 ? container : container.parentElement;
+      if (!element || !element.closest('.entry-text')) return;
 
       this.showSelectionTooltip(text, range);
     };
