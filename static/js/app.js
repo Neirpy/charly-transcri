@@ -17,8 +17,13 @@ class CharlyApp {
     this.language = localStorage.getItem('charly_lang') || 'fr-FR';
     this.enableWakeLock = localStorage.getItem('charly_wakelock') !== 'false';
     
+    // Traduction instantanée & à la demande (Ukrainien par défaut)
+    this.targetLanguage = localStorage.getItem('charly_target_lang') || 'uk';
+    this.autoTranslate = localStorage.getItem('charly_auto_translate') === 'true';
+    this.translationCache = new Map();
+
     // Données de transcription
-    this.transcripts = []; // Blocs { id, timestamp, text }
+    this.transcripts = []; // Blocs { id, timestamp, text, translation }
     this.currentPartial = '';
     this.autoScrollEnabled = true;
     this.fontSize = parseInt(localStorage.getItem('charly_font_size') || '24', 10);
@@ -86,7 +91,17 @@ class CharlyApp {
       modalBody: document.getElementById('modalBody'),
       modalConfirmBtn: document.getElementById('modalConfirmBtn'),
       modalCancelBtn: document.getElementById('modalCancelBtn'),
-      toastContainer: document.getElementById('toastContainer')
+      toastContainer: document.getElementById('toastContainer'),
+
+      // Traduction & Accessibilité Ukrainienne
+      btnToggleAutoTranslate: document.getElementById('btnToggleAutoTranslate'),
+      translateStatusText: document.getElementById('translateStatusText'),
+      targetLanguageSelect: document.getElementById('targetLanguageSelect'),
+      autoTranslateCheckbox: document.getElementById('autoTranslateCheckbox'),
+      selectionTooltip: document.getElementById('selectionTooltip'),
+      closeTooltipBtn: document.getElementById('closeTooltipBtn'),
+      tooltipSource: document.getElementById('tooltipSource'),
+      tooltipResult: document.getElementById('tooltipResult')
     };
 
     this.init();
@@ -96,7 +111,9 @@ class CharlyApp {
     this.applyTheme(this.theme);
     this.applyFontSize(this.fontSize);
     this.loadSavedSession();
+    this.updateTranslateToggleUI();
     this.setupEventListeners();
+    this.setupTextSelectionTranslation();
     this.registerServiceWorker();
     this.setupPwaInstall();
     this.initPipElements();
@@ -463,9 +480,10 @@ class CharlyApp {
     let html = '';
     this.transcripts.slice(-15).forEach((t) => {
       html += `
-        <div style="background:rgba(255,255,255,0.05); padding:6px 10px; border-radius:8px; border-left:3px solid var(--accent-primary, #38bdf8);">
+        <div style="background:rgba(255,255,255,0.05); padding:6px 10px; border-radius:8px; border-left:3px solid var(--accent-primary, #38bdf8); margin-bottom:4px;">
           <small style="color:var(--accent-primary, #38bdf8); font-family:monospace;">[${t.timestamp}]</small>
           <div style="font-weight:500;">${this.escapeHtml(t.text)}</div>
+          ${t.translation ? `<div style="margin-top:4px; font-size:0.9em; color:#ffd700; border-top:1px dashed rgba(255,255,255,0.1); padding-top:2px;">🇺🇦 ${this.escapeHtml(t.translation)}</div>` : ''}
         </div>
       `;
     });
@@ -571,13 +589,20 @@ class CharlyApp {
       let y = 80;
       const lastEntries = this.transcripts.slice(-3);
       
-      ctx.fillStyle = '#f8fafc';
       ctx.font = 'bold 18px sans-serif';
 
       lastEntries.forEach((entry) => {
         const text = `[${entry.timestamp}] ${entry.text}`;
-        this.wrapCanvasText(ctx, text, 16, y, w - 32, 24);
-        y += 55;
+        ctx.fillStyle = '#f8fafc';
+        this.wrapCanvasText(ctx, text, 16, y, w - 32, 22);
+        y += 35;
+        if (entry.translation) {
+          ctx.fillStyle = '#ffd700';
+          this.wrapCanvasText(ctx, `🇺🇦 ${entry.translation}`, 24, y, w - 40, 20);
+          y += 32;
+        } else {
+          y += 10;
+        }
       });
 
       // Texte partiel en direct
@@ -816,6 +841,16 @@ class CharlyApp {
     this.dom.btnCopy.addEventListener('click', () => this.copyToClipboard());
     this.dom.btnDownload.addEventListener('click', () => this.downloadTranscriptTxt());
     this.dom.btnClear.addEventListener('click', () => this.confirmClearTranscript());
+
+    // Interrupteur traduction continue
+    if (this.dom.btnToggleAutoTranslate) {
+      this.dom.btnToggleAutoTranslate.addEventListener('click', () => this.toggleAutoTranslate());
+    }
+
+    // Fermeture infobulle de sélection
+    if (this.dom.closeTooltipBtn) {
+      this.dom.closeTooltipBtn.addEventListener('click', () => this.hideSelectionTooltip());
+    }
 
     this.dom.btnSettings.addEventListener('click', () => this.openSettingsModal());
     this.dom.closeSettingsBtn.addEventListener('click', () => this.closeSettingsModal());
@@ -1248,7 +1283,45 @@ class CharlyApp {
     });
   }
 
-  // --- 14. GESTION DE L'AFFICHAGE DU TEXTE ---
+  // --- 14. GESTION DE L'AFFICHAGE DU TEXTE & TRADUCTION ---
+  createTranscriptEntryElement(entry) {
+    const entryEl = document.createElement('article');
+    entryEl.className = 'transcript-entry';
+    entryEl.setAttribute('role', 'region');
+    entryEl.setAttribute('aria-label', `Prise de parole à ${entry.timestamp}`);
+    entryEl.id = `entry-${entry.id}`;
+
+    const isTranslated = Boolean(entry.translation && entry.translation.trim());
+
+    entryEl.innerHTML = `
+      <span class="timestamp" aria-hidden="true">${entry.timestamp}</span>
+      <div class="entry-body">
+        <div class="entry-main-row">
+          <p class="entry-text">${this.escapeHtml(entry.text)}</p>
+          <div class="entry-actions">
+            <button class="btn-entry-translate ${isTranslated ? 'active' : ''}" data-id="${entry.id}" title="Traduire en ukrainien (UA)" aria-label="Traduire ce passage en ukrainien">
+              <span>🇺🇦</span>
+              <span class="btn-translate-text">${isTranslated ? 'Masquer' : 'Traduire'}</span>
+            </button>
+          </div>
+        </div>
+        <div class="entry-translation" id="trans-${entry.id}" style="${isTranslated ? 'display: block;' : 'display: none;'}">
+          <div class="translation-header">
+            <span class="translation-tag">🇺🇦 Traduction Ukrainienne</span>
+          </div>
+          <p class="translation-text">${isTranslated ? this.escapeHtml(entry.translation) : ''}</p>
+        </div>
+      </div>
+    `;
+
+    const btn = entryEl.querySelector('.btn-entry-translate');
+    if (btn) {
+      btn.addEventListener('click', () => this.toggleEntryTranslation(entry.id));
+    }
+
+    return entryEl;
+  }
+
   addTranscriptEntry(text, customTimestamp = null) {
     const now = new Date();
     const timestamp = customTimestamp || now.toTimeString().split(' ')[0];
@@ -1256,7 +1329,8 @@ class CharlyApp {
     const entry = {
       id: Date.now().toString(),
       timestamp: timestamp,
-      text: text
+      text: text,
+      translation: null
     };
 
     this.transcripts.push(entry);
@@ -1266,19 +1340,209 @@ class CharlyApp {
       this.dom.emptyState.style.display = 'none';
     }
 
-    const entryEl = document.createElement('article');
-    entryEl.className = 'transcript-entry';
-    entryEl.setAttribute('role', 'region');
-    entryEl.setAttribute('aria-label', `Prise de parole à ${timestamp}`);
-
-    entryEl.innerHTML = `
-      <span class="timestamp" aria-hidden="true">${timestamp}</span>
-      <p class="entry-text">${this.escapeHtml(text)}</p>
-    `;
-
+    const entryEl = this.createTranscriptEntryElement(entry);
     this.dom.transcriptContent.appendChild(entryEl);
     this.scrollToBottom();
     this.syncPipContent();
+
+    // Si la traduction automatique continue est activée, traduire immédiatement
+    if (this.autoTranslate) {
+      this.translateEntry(entry.id);
+    }
+  }
+
+  // --- SERVICE DE TRADUCTION AUTONOME (SANS CLÉ API) ---
+  async translateText(text, sourceLang = 'fr', targetLang = 'uk') {
+    if (!text || !text.trim()) return '';
+    const cleanText = text.trim();
+    const cacheKey = `${sourceLang}:${targetLang}:${cleanText}`;
+    if (this.translationCache.has(cacheKey)) {
+      return this.translationCache.get(cacheKey);
+    }
+
+    try {
+      const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${encodeURIComponent(sourceLang)}&tl=${encodeURIComponent(targetLang)}&dt=t&q=${encodeURIComponent(cleanText)}`;
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`Erreur réseau: ${response.status}`);
+      }
+      const data = await response.json();
+      if (data && data[0] && Array.isArray(data[0])) {
+        const translated = data[0].map((item) => item[0]).filter(Boolean).join('');
+        this.translationCache.set(cacheKey, translated);
+        return translated;
+      }
+      throw new Error("Format de réponse inattendu");
+    } catch (err) {
+      console.warn("Erreur traduction autonome :", err);
+      throw err;
+    }
+  }
+
+  async toggleEntryTranslation(entryId) {
+    const entry = this.transcripts.find((t) => t.id === entryId);
+    if (!entry) return;
+
+    const transEl = document.getElementById(`trans-${entryId}`);
+    const btn = document.querySelector(`.btn-entry-translate[data-id="${entryId}"]`);
+    if (!transEl || !btn) return;
+
+    // Si déjà visible, masquer
+    if (transEl.style.display !== 'none' && entry.translation) {
+      transEl.style.display = 'none';
+      btn.classList.remove('active');
+      const textSpan = btn.querySelector('.btn-translate-text');
+      if (textSpan) textSpan.textContent = 'Traduire';
+      return;
+    }
+
+    // Si déjà traduit mais masqué, afficher
+    if (entry.translation) {
+      transEl.style.display = 'block';
+      btn.classList.add('active');
+      const textSpan = btn.querySelector('.btn-translate-text');
+      if (textSpan) textSpan.textContent = 'Masquer';
+      this.scrollToBottom();
+      this.syncPipContent();
+      return;
+    }
+
+    // Sinon lancer la traduction
+    await this.translateEntry(entryId);
+  }
+
+  async translateEntry(entryId) {
+    const entry = this.transcripts.find((t) => t.id === entryId);
+    if (!entry) return;
+
+    const transEl = document.getElementById(`trans-${entryId}`);
+    const btn = document.querySelector(`.btn-entry-translate[data-id="${entryId}"]`);
+    if (!transEl) return;
+
+    const transTextEl = transEl.querySelector('.translation-text');
+    const textSpan = btn ? btn.querySelector('.btn-translate-text') : null;
+
+    transEl.style.display = 'block';
+    if (transTextEl) {
+      transTextEl.innerHTML = `<span class="translation-loading"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="spin-anim"><circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 0 1 10 10"/></svg> Traduction ukrainienne en cours...</span>`;
+    }
+    if (textSpan) textSpan.textContent = 'Traduction...';
+
+    try {
+      const srcLang = (this.language || 'fr-FR').split('-')[0];
+      const translated = await this.translateText(entry.text, srcLang, this.targetLanguage || 'uk');
+      entry.translation = translated;
+      this.saveSession();
+
+      if (transTextEl) {
+        transTextEl.textContent = translated;
+      }
+      if (btn) {
+        btn.classList.add('active');
+        if (textSpan) textSpan.textContent = 'Masquer';
+      }
+      this.scrollToBottom();
+      this.syncPipContent();
+    } catch (e) {
+      if (transTextEl) {
+        transTextEl.innerHTML = `<span style="color: var(--danger); font-size: 0.85rem;">⚠️ Impossible de traduire pour le moment (connexion requise).</span>`;
+      }
+      if (textSpan) textSpan.textContent = 'Réessayer';
+    }
+  }
+
+  toggleAutoTranslate() {
+    this.autoTranslate = !this.autoTranslate;
+    localStorage.setItem('charly_auto_translate', this.autoTranslate.toString());
+    this.updateTranslateToggleUI();
+
+    if (this.autoTranslate) {
+      this.showToast("Traduction directe activée (🇺🇦 Ukrainien)");
+      // Traduire les dernières entrées visibles non encore traduites
+      const untranslated = this.transcripts.slice(-4).filter((t) => !t.translation);
+      untranslated.forEach((entry) => this.translateEntry(entry.id));
+    } else {
+      this.showToast("Traduction directe mise en veille");
+    }
+  }
+
+  updateTranslateToggleUI() {
+    const btn = this.dom.btnToggleAutoTranslate;
+    const statusText = this.dom.translateStatusText;
+    if (!btn || !statusText) return;
+
+    if (this.autoTranslate) {
+      btn.classList.add('active');
+      btn.setAttribute('aria-pressed', 'true');
+      statusText.textContent = 'ON';
+    } else {
+      btn.classList.remove('active');
+      btn.setAttribute('aria-pressed', 'false');
+      statusText.textContent = 'OFF';
+    }
+
+    if (this.dom.autoTranslateCheckbox) {
+      this.dom.autoTranslateCheckbox.checked = this.autoTranslate;
+    }
+  }
+
+  // --- TRADUCTION D'UN MOT OU EXPRESSION AU SURVOL / SÉLECTION ---
+  setupTextSelectionTranslation() {
+    const handleSelection = () => {
+      const selection = window.getSelection();
+      if (!selection || selection.isCollapsed) return;
+
+      const text = selection.toString().trim();
+      if (!text || text.length < 2 || text.length > 250) return;
+
+      const range = selection.getRangeAt(0);
+      const container = range.commonAncestorContainer;
+      if (!this.dom.transcriptWrapper.contains(container)) return;
+
+      this.showSelectionTooltip(text, range);
+    };
+
+    this.dom.transcriptWrapper.addEventListener('mouseup', handleSelection);
+    this.dom.transcriptWrapper.addEventListener('touchend', handleSelection);
+
+    document.addEventListener('mousedown', (e) => {
+      if (this.dom.selectionTooltip && !this.dom.selectionTooltip.contains(e.target)) {
+        this.hideSelectionTooltip();
+      }
+    });
+  }
+
+  async showSelectionTooltip(text, range) {
+    const tooltip = this.dom.selectionTooltip;
+    if (!tooltip) return;
+
+    const rect = range.getBoundingClientRect();
+    const tooltipX = Math.max(16, Math.min(window.innerWidth - 350, rect.left));
+    let tooltipY = rect.bottom + window.scrollY + 8;
+    if (rect.bottom > window.innerHeight - 170) {
+      tooltipY = Math.max(10, rect.top + window.scrollY - 130);
+    }
+
+    tooltip.style.left = `${tooltipX}px`;
+    tooltip.style.top = `${tooltipY}px`;
+    tooltip.style.display = 'block';
+
+    this.dom.tooltipSource.textContent = `« ${text} »`;
+    this.dom.tooltipResult.innerHTML = `<span class="translation-loading"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="spin-anim"><circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 0 1 10 10"/></svg> Traduction...</span>`;
+
+    try {
+      const srcLang = (this.language || 'fr-FR').split('-')[0];
+      const translated = await this.translateText(text, srcLang, this.targetLanguage || 'uk');
+      this.dom.tooltipResult.textContent = translated;
+    } catch (err) {
+      this.dom.tooltipResult.innerHTML = `<span style="color:var(--danger); font-size:0.85rem;">⚠️ Échec de la traduction</span>`;
+    }
+  }
+
+  hideSelectionTooltip() {
+    if (this.dom.selectionTooltip) {
+      this.dom.selectionTooltip.style.display = 'none';
+    }
   }
 
   setPartial(text) {
@@ -1319,12 +1583,7 @@ class CharlyApp {
             this.dom.emptyState.style.display = 'none';
           }
           this.transcripts.forEach((entry) => {
-            const entryEl = document.createElement('article');
-            entryEl.className = 'transcript-entry';
-            entryEl.innerHTML = `
-              <span class="timestamp">${entry.timestamp}</span>
-              <p class="entry-text">${this.escapeHtml(entry.text)}</p>
-            `;
+            const entryEl = this.createTranscriptEntryElement(entry);
             this.dom.transcriptContent.appendChild(entryEl);
           });
           this.scrollToBottom();
@@ -1343,7 +1602,13 @@ class CharlyApp {
     }
 
     const fullText = this.transcripts
-      .map((t) => `[${t.timestamp}] ${t.text}`)
+      .map((t) => {
+        let str = `[${t.timestamp}] ${t.text}`;
+        if (t.translation) {
+          str += `\n  └ 🇺🇦 UA: ${t.translation}`;
+        }
+        return str;
+      })
       .join('\n\n');
 
     try {
@@ -1381,7 +1646,13 @@ class CharlyApp {
       "============================================================",
       `CHARLY TRANSCRI - TRANSCRIPTION DU ${dateStr} à ${now.toTimeString().slice(0, 8)}`,
       "============================================================\n",
-      ...this.transcripts.map((t) => `[${t.timestamp}] ${t.text}`),
+      ...this.transcripts.map((t) => {
+        let str = `[${t.timestamp}] ${t.text}`;
+        if (t.translation) {
+          str += `\n   └ 🇺🇦 UA: ${t.translation}`;
+        }
+        return str;
+      }),
       "\n============================================================"
     ].join('\n');
 
@@ -1431,6 +1702,12 @@ class CharlyApp {
     this.dom.engineSelect.value = this.selectedEngine;
     this.dom.geminiApiKeyInput.value = this.geminiApiKey;
     this.dom.languageSelect.value = this.language;
+    if (this.dom.targetLanguageSelect) {
+      this.dom.targetLanguageSelect.value = this.targetLanguage;
+    }
+    if (this.dom.autoTranslateCheckbox) {
+      this.dom.autoTranslateCheckbox.checked = this.autoTranslate;
+    }
     this.dom.wakeLockCheckbox.checked = this.enableWakeLock;
     this.dom.settingsModal.classList.add('active');
     await this.enumerateAudioDevices(true);
@@ -1448,6 +1725,15 @@ class CharlyApp {
     this.geminiApiKey = this.dom.geminiApiKeyInput.value.trim();
     this.selectedMicId = this.dom.micDeviceSelect.value;
     this.language = this.dom.languageSelect.value;
+    if (this.dom.targetLanguageSelect) {
+      this.targetLanguage = this.dom.targetLanguageSelect.value;
+      localStorage.setItem('charly_target_lang', this.targetLanguage);
+    }
+    if (this.dom.autoTranslateCheckbox) {
+      this.autoTranslate = this.dom.autoTranslateCheckbox.checked;
+      localStorage.setItem('charly_auto_translate', this.autoTranslate.toString());
+      this.updateTranslateToggleUI();
+    }
     this.enableWakeLock = this.dom.wakeLockCheckbox.checked;
 
     localStorage.setItem('charly_engine', this.selectedEngine);

@@ -1,5 +1,5 @@
 /* Service Worker pour Charly Transcri PWA */
-const CACHE_NAME = 'charly-transcri-v2.1.0';
+const CACHE_NAME = 'charly-transcri-v2.2.0';
 const ASSETS_TO_CACHE = [
   './',
   'index.html',

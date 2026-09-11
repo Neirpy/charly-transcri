@@ -122,6 +122,15 @@
           <button class="theme-pill" data-theme="sepia" aria-pressed="false">Sépia</button>
         </div>
       </div>
+
+      <!-- Traduction Instantanée Ukrainien (Pour cours complexes) -->
+      <div class="a11y-group a11y-group-translate" role="group" aria-label="Traduction en ukrainien">
+        <span class="a11y-label">Traduction :</span>
+        <button id="btnToggleAutoTranslate" class="btn-toggle-translate" title="Activer ou désactiver la traduction directe continue" aria-pressed="false">
+          <span class="flag-icon">🇺🇦</span>
+          <span class="toggle-text">Traduction directe : <strong id="translateStatusText">OFF</strong></span>
+        </button>
+      </div>
     </nav>
 
     <!-- ZONE PRINCIPALE DE TRANSCRIPTION (SCROLLABLE & ARIA-LIVE) -->
@@ -153,6 +162,18 @@
       </div>
 
     </main>
+
+    <!-- INFOBULLE FLOTTANTE : TRADUCTION D'UN MOT OU EXPRESSION AU SURVOL / SÉLECTION -->
+    <div id="selectionTooltip" class="selection-translate-tooltip" style="display: none;" role="tooltip">
+      <div class="tooltip-header">
+        <span class="tooltip-badge">🇺🇦 Traduction Ukrainienne</span>
+        <button id="closeTooltipBtn" class="btn-close-tooltip" title="Fermer l'infobulle" aria-label="Fermer">✕</button>
+      </div>
+      <div class="tooltip-body">
+        <div class="tooltip-source" id="tooltipSource"></div>
+        <div class="tooltip-result" id="tooltipResult"></div>
+      </div>
+    </div>
 
     <!-- BOUTON FLOTTANT : REPRENDRE LE DÉFILEMENT AUTOMATIQUE -->
     <button id="resumeScrollBtn" class="resume-scroll-btn" title="Reprendre le défilement automatique" aria-label="Reprendre le défilement automatique">
@@ -231,6 +252,25 @@
               <option value="de-DE">Deutsch</option>
               <option value="it-IT">Italiano</option>
             </select>
+          </div>
+
+          <div class="form-group">
+            <label for="targetLanguageSelect"><strong>🌐 Traduire vers (Langue cible) :</strong></label>
+            <select id="targetLanguageSelect" class="form-select">
+              <option value="uk" selected>🇺🇦 Ukrainien (Українська)</option>
+              <option value="en">🇬🇧 Anglais (English)</option>
+              <option value="es">🇪🇸 Espagnol</option>
+              <option value="de">🇩🇪 Allemand</option>
+              <option value="it">🇮🇹 Italien</option>
+            </select>
+            <small class="form-hint">Traduction autonome et immédiate, optimisée pour le vocabulaire complexe ou universitaire.</small>
+          </div>
+
+          <div class="form-group">
+            <label class="checkbox-label">
+              <input type="checkbox" id="autoTranslateCheckbox">
+              <span>Activer la traduction automatique continue dès le lancement</span>
+            </label>
           </div>
 
           <div class="form-group">

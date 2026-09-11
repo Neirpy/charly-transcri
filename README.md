@@ -55,5 +55,6 @@ Elle est conçue pour fonctionner comme une **véritable application installée*
 | **👁️ Vumètre Visuel** | Onde sonore pour vérifier en direct si le micro capte bien la voix. |
 | **🔠 Taille de Police Ajustable** | Boutons `A-` / `A+` de 16px à 48px pour une lecture sans fatigue. |
 | **🎨 4 Thèmes de Contraste** | Sombre OLED, Clair, Jaune sur Noir (malvoyants), Sépia. |
+| **🇺🇦 Traduction Ukrainienne** | Traduction instantanée à la demande (bouton sur chaque phrase) ou en direct pour les cours difficiles. |
 | **💡 Maintien de l'Écran Allumé** | Empêche l'iPad ou le PC de se mettre en veille. |
-| **💾 Export .txt & Copie** | Téléchargement horodaté compatible avec l'application *Fichiers* d'iPadOS et Windows. |
+| **💾 Export .txt & Copie** | Téléchargement horodaté compatible avec l'application *Fichiers* d'iPadOS et Windows (inclut les traductions). |
