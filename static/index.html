@@ -124,12 +124,12 @@
         </div>
       </div>
 
-      <!-- Traduction Instantanée Ukrainien (Pour cours complexes) -->
-      <div class="a11y-group a11y-group-translate" role="group" aria-label="Traduction en ukrainien">
+      <!-- Traduction Instantanée Multilingue -->
+      <div class="a11y-group a11y-group-translate" role="group" aria-label="Traduction en direct">
         <span class="a11y-label">Traduction :</span>
         <button id="btnToggleAutoTranslate" class="btn-toggle-translate" title="Activer ou désactiver la traduction directe continue" aria-pressed="false">
-          <span class="flag-icon">🇺🇦</span>
-          <span class="toggle-text">Traduction directe : <strong id="translateStatusText">OFF</strong></span>
+          <span class="flag-icon" id="translateFlagIcon">🇺🇦</span>
+          <span class="toggle-text">Traduction (<span id="translateLangName">Ukrainien</span>) : <strong id="translateStatusText">OFF</strong></span>
         </button>
       </div>
     </nav>
@@ -167,7 +167,7 @@
     <!-- INFOBULLE FLOTTANTE : TRADUCTION D'UN MOT OU EXPRESSION AU SURVOL / SÉLECTION -->
     <div id="selectionTooltip" class="selection-translate-tooltip" style="display: none;" role="tooltip">
       <div class="tooltip-header">
-        <span class="tooltip-badge">🇺🇦 Traduction Ukrainienne</span>
+        <span class="tooltip-badge" id="tooltipBadge">🇺🇦 Traduction Ukrainienne</span>
         <button id="closeTooltipBtn" class="btn-close-tooltip" title="Fermer l'infobulle" aria-label="Fermer">✕</button>
       </div>
       <div class="tooltip-body">

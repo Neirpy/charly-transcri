@@ -4,7 +4,19 @@
  * 1. Choix du Microphone spécifique (casques, AirPods, micros externes)
  * 2. Mode Fenêtre Flottante « Au-dessus de tout » (Picture-in-Picture pour PC & iPad)
  * 3. Multi-moteurs (Web Speech natif, Gemini Live JS, Serveur Local)
+ * 4. Traduction multilingue dynamique (Ukrainien, Anglais, Espagnol, Allemand...)
  */
+
+const TARGET_LANGUAGES = {
+  uk: { code: 'uk', label: 'Ukrainien', adjective: 'ukrainienne', flag: '🇺🇦' },
+  en: { code: 'en', label: 'Anglais', adjective: 'anglaise', flag: '🇬🇧' },
+  es: { code: 'es', label: 'Espagnol', adjective: 'espagnole', flag: '🇪🇸' },
+  de: { code: 'de', label: 'Allemand', adjective: 'allemande', flag: '🇩🇪' },
+  it: { code: 'it', label: 'Italien', adjective: 'italienne', flag: '🇮🇹' },
+  pt: { code: 'pt', label: 'Portugais', adjective: 'portugaise', flag: '🇵🇹' },
+  ar: { code: 'ar', label: 'Arabe', adjective: 'arabe', flag: '🇸🇦' },
+  zh: { code: 'zh', label: 'Chinois', adjective: 'chinoise', flag: '🇨🇳' }
+};
 
 class CharlyApp {
   constructor() {
@@ -93,12 +105,15 @@ class CharlyApp {
       modalCancelBtn: document.getElementById('modalCancelBtn'),
       toastContainer: document.getElementById('toastContainer'),
 
-      // Traduction & Accessibilité Ukrainienne
+      // Traduction & Accessibilité Dynamique
       btnToggleAutoTranslate: document.getElementById('btnToggleAutoTranslate'),
       translateStatusText: document.getElementById('translateStatusText'),
+      translateFlagIcon: document.getElementById('translateFlagIcon'),
+      translateLangName: document.getElementById('translateLangName'),
       targetLanguageSelect: document.getElementById('targetLanguageSelect'),
       autoTranslateCheckbox: document.getElementById('autoTranslateCheckbox'),
       selectionTooltip: document.getElementById('selectionTooltip'),
+      tooltipBadge: document.getElementById('tooltipBadge'),
       closeTooltipBtn: document.getElementById('closeTooltipBtn'),
       tooltipSource: document.getElementById('tooltipSource'),
       tooltipResult: document.getElementById('tooltipResult')
@@ -111,6 +126,7 @@ class CharlyApp {
     this.applyTheme(this.theme);
     this.applyFontSize(this.fontSize);
     this.loadSavedSession();
+    this.updateTranslateUI();
     this.updateTranslateToggleUI();
     this.setupEventListeners();
     this.setupTextSelectionTranslation();
@@ -477,13 +493,15 @@ class CharlyApp {
     const container = this.pipWindow.document.getElementById('pipTranscriptContainer');
     if (!container) return;
 
+    const currentLangInfo = this.getTargetLangInfo();
     let html = '';
     this.transcripts.slice(-15).forEach((t) => {
+      const entryLang = t.translationLang ? this.getTargetLangInfo(t.translationLang) : currentLangInfo;
       html += `
         <div style="background:rgba(255,255,255,0.05); padding:6px 10px; border-radius:8px; border-left:3px solid var(--accent-primary, #38bdf8); margin-bottom:4px;">
           <small style="color:var(--accent-primary, #38bdf8); font-family:monospace;">[${t.timestamp}]</small>
           <div style="font-weight:500;">${this.escapeHtml(t.text)}</div>
-          ${t.translation ? `<div style="margin-top:4px; font-size:0.9em; color:#ffd700; border-top:1px dashed rgba(255,255,255,0.1); padding-top:2px;">🇺🇦 ${this.escapeHtml(t.translation)}</div>` : ''}
+          ${t.translation ? `<div style="margin-top:4px; font-size:0.9em; color:#ffd700; border-top:1px dashed rgba(255,255,255,0.1); padding-top:2px;">${entryLang.flag} ${this.escapeHtml(t.translation)}</div>` : ''}
         </div>
       `;
     });
@@ -597,8 +615,9 @@ class CharlyApp {
         this.wrapCanvasText(ctx, text, 16, y, w - 32, 22);
         y += 35;
         if (entry.translation) {
+          const entryLang = entry.translationLang ? this.getTargetLangInfo(entry.translationLang) : this.getTargetLangInfo();
           ctx.fillStyle = '#ffd700';
-          this.wrapCanvasText(ctx, `🇺🇦 ${entry.translation}`, 24, y, w - 40, 20);
+          this.wrapCanvasText(ctx, `${entryLang.flag} ${entry.translation}`, 24, y, w - 40, 20);
           y += 32;
         } else {
           y += 10;
@@ -845,6 +864,13 @@ class CharlyApp {
     // Interrupteur traduction continue
     if (this.dom.btnToggleAutoTranslate) {
       this.dom.btnToggleAutoTranslate.addEventListener('click', () => this.toggleAutoTranslate());
+    }
+
+    // Changement direct de langue de traduction dans les paramètres
+    if (this.dom.targetLanguageSelect) {
+      this.dom.targetLanguageSelect.addEventListener('change', (e) => {
+        this.setTargetLanguage(e.target.value);
+      });
     }
 
     // Fermeture infobulle de sélection
@@ -1290,8 +1316,11 @@ class CharlyApp {
     entryEl.setAttribute('role', 'region');
     entryEl.setAttribute('aria-label', `Prise de parole à ${entry.timestamp}`);
     entryEl.id = `entry-${entry.id}`;
+    entryEl.dataset.id = entry.id;
 
     const isTranslated = Boolean(entry.translation && entry.translation.trim());
+    const currentLang = this.getTargetLangInfo();
+    const entryLang = entry.translationLang ? this.getTargetLangInfo(entry.translationLang) : currentLang;
 
     entryEl.innerHTML = `
       <span class="timestamp" aria-hidden="true">${entry.timestamp}</span>
@@ -1299,15 +1328,15 @@ class CharlyApp {
         <div class="entry-main-row">
           <p class="entry-text">${this.escapeHtml(entry.text)}</p>
           <div class="entry-actions">
-            <button class="btn-entry-translate ${isTranslated ? 'active' : ''}" data-id="${entry.id}" title="Traduire en ukrainien (UA)" aria-label="Traduire ce passage en ukrainien">
-              <span>🇺🇦</span>
+            <button class="btn-entry-translate ${isTranslated ? 'active' : ''}" data-id="${entry.id}" title="Traduire en ${currentLang.label}" aria-label="Traduire ce passage en ${currentLang.label}">
+              <span class="btn-translate-flag">${currentLang.flag}</span>
               <span class="btn-translate-text">${isTranslated ? 'Masquer' : 'Traduire'}</span>
             </button>
           </div>
         </div>
         <div class="entry-translation" id="trans-${entry.id}" style="${isTranslated ? 'display: block;' : 'display: none;'}">
           <div class="translation-header">
-            <span class="translation-tag">🇺🇦 Traduction Ukrainienne</span>
+            <span class="translation-tag">${entryLang.flag} Traduction ${entryLang.label}</span>
           </div>
           <p class="translation-text">${isTranslated ? this.escapeHtml(entry.translation) : ''}</p>
         </div>
@@ -1330,7 +1359,8 @@ class CharlyApp {
       id: Date.now().toString(),
       timestamp: timestamp,
       text: text,
-      translation: null
+      translation: null,
+      translationLang: this.targetLanguage
     };
 
     this.transcripts.push(entry);
@@ -1416,6 +1446,93 @@ class CharlyApp {
     throw new Error("Toutes les options de traduction ont échoué.");
   }
 
+  getTargetLangInfo(code = this.targetLanguage) {
+    const key = (code || 'uk').toLowerCase().split('-')[0];
+    return TARGET_LANGUAGES[key] || {
+      code: key,
+      label: key.toUpperCase(),
+      adjective: key.toLowerCase(),
+      flag: '🌐'
+    };
+  }
+
+  updateTranslateUI() {
+    const langInfo = this.getTargetLangInfo();
+
+    // 1. Bouton dans la barre d'outils
+    if (this.dom.translateFlagIcon) {
+      this.dom.translateFlagIcon.textContent = langInfo.flag;
+    }
+    if (this.dom.translateLangName) {
+      this.dom.translateLangName.textContent = langInfo.label;
+    }
+    if (this.dom.btnToggleAutoTranslate) {
+      this.dom.btnToggleAutoTranslate.title = `Activer ou désactiver la traduction directe continue en ${langInfo.label}`;
+    }
+
+    // 2. Infobulle de sélection
+    if (this.dom.tooltipBadge) {
+      this.dom.tooltipBadge.textContent = `${langInfo.flag} Traduction ${langInfo.label}`;
+    }
+
+    // 3. Mettre à jour l'en-tête et les boutons de chaque carte déjà affichée
+    if (this.dom.transcriptContent) {
+      const entryElements = this.dom.transcriptContent.querySelectorAll('.transcript-entry');
+      entryElements.forEach((el) => {
+        const flagSpan = el.querySelector('.btn-translate-flag');
+        if (flagSpan) flagSpan.textContent = langInfo.flag;
+
+        const btn = el.querySelector('.btn-entry-translate');
+        if (btn) {
+          btn.title = `Traduire en ${langInfo.label}`;
+          btn.setAttribute('aria-label', `Traduire ce passage en ${langInfo.label}`);
+        }
+
+        const tag = el.querySelector('.translation-tag');
+        if (tag) {
+          const entryId = el.dataset.id || (el.id ? el.id.replace('entry-', '') : null);
+          const entry = entryId ? this.transcripts.find((t) => t.id === entryId) : null;
+          const entryLang = (entry && entry.translationLang) ? entry.translationLang : this.targetLanguage;
+          const entryLangInfo = this.getTargetLangInfo(entryLang);
+          tag.textContent = `${entryLangInfo.flag} Traduction ${entryLangInfo.label}`;
+        }
+      });
+    }
+
+    this.syncPipContent();
+  }
+
+  async setTargetLanguage(newLang) {
+    if (!newLang) return;
+    const oldLang = this.targetLanguage;
+    const changed = (oldLang !== newLang);
+    this.targetLanguage = newLang;
+    localStorage.setItem('charly_target_lang', this.targetLanguage);
+
+    if (this.dom.targetLanguageSelect && this.dom.targetLanguageSelect.value !== newLang) {
+      this.dom.targetLanguageSelect.value = newLang;
+    }
+
+    const langInfo = this.getTargetLangInfo();
+    this.updateTranslateUI();
+    this.updateTranslateToggleUI();
+
+    if (changed) {
+      // Retraduire toutes les entrées qui ont une traduction déjà affichée ou stockée
+      const translatedEntries = this.transcripts.filter((t) => t.translation && t.translation.trim());
+      const targetEntries = this.autoTranslate ? this.transcripts.slice(-10) : translatedEntries;
+
+      if (targetEntries.length > 0) {
+        // Retraduire pour actualiser immédiatement la page
+        await Promise.allSettled(
+          targetEntries.map((entry) => this.translateEntry(entry.id, true))
+        );
+      }
+
+      this.showToast(`Langue de traduction : ${langInfo.flag} ${langInfo.label}`);
+    }
+  }
+
   async toggleEntryTranslation(entryId) {
     const entry = this.transcripts.find((t) => t.id === entryId);
     if (!entry) return;
@@ -1424,8 +1541,8 @@ class CharlyApp {
     const btn = document.querySelector(`.btn-entry-translate[data-id="${entryId}"]`);
     if (!transEl || !btn) return;
 
-    // Si déjà visible, masquer
-    if (transEl.style.display !== 'none' && entry.translation) {
+    // Si déjà visible et avec la bonne langue, masquer
+    if (transEl.style.display !== 'none' && entry.translation && entry.translationLang === this.targetLanguage) {
       transEl.style.display = 'none';
       btn.classList.remove('active');
       const textSpan = btn.querySelector('.btn-translate-text');
@@ -1433,8 +1550,8 @@ class CharlyApp {
       return;
     }
 
-    // Si déjà traduit mais masqué, afficher
-    if (entry.translation) {
+    // Si déjà traduit dans la bonne langue mais masqué, afficher
+    if (entry.translation && entry.translationLang === this.targetLanguage) {
       transEl.style.display = 'block';
       btn.classList.add('active');
       const textSpan = btn.querySelector('.btn-translate-text');
@@ -1444,11 +1561,11 @@ class CharlyApp {
       return;
     }
 
-    // Sinon lancer la traduction
-    await this.translateEntry(entryId);
+    // Sinon lancer (ou relancer) la traduction dans la langue actuelle
+    await this.translateEntry(entryId, true);
   }
 
-  async translateEntry(entryId) {
+  async translateEntry(entryId, force = false) {
     const entry = this.transcripts.find((t) => t.id === entryId);
     if (!entry) return;
 
@@ -1458,10 +1575,24 @@ class CharlyApp {
 
     const transTextEl = transEl.querySelector('.translation-text');
     const textSpan = btn ? btn.querySelector('.btn-translate-text') : null;
+    const tag = transEl.querySelector('.translation-tag');
+    const langInfo = this.getTargetLangInfo();
+
+    // Si déjà traduit dans la même langue et non forcé
+    if (!force && entry.translation && entry.translationLang === this.targetLanguage) {
+      transEl.style.display = 'block';
+      if (btn) btn.classList.add('active');
+      if (textSpan) textSpan.textContent = 'Masquer';
+      if (tag) tag.textContent = `${langInfo.flag} Traduction ${langInfo.label}`;
+      return;
+    }
 
     transEl.style.display = 'block';
+    if (tag) {
+      tag.textContent = `${langInfo.flag} Traduction ${langInfo.label}`;
+    }
     if (transTextEl) {
-      transTextEl.innerHTML = `<span class="translation-loading"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="spin-anim"><circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 0 1 10 10"/></svg> Traduction ukrainienne en cours...</span>`;
+      transTextEl.innerHTML = `<span class="translation-loading"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="spin-anim"><circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 0 1 10 10"/></svg> Traduction ${langInfo.adjective} en cours...</span>`;
     }
     if (textSpan) textSpan.textContent = 'Traduction...';
 
@@ -1469,6 +1600,7 @@ class CharlyApp {
       const srcLang = (this.language || 'fr-FR').split('-')[0];
       const translated = await this.translateText(entry.text, srcLang, this.targetLanguage || 'uk');
       entry.translation = translated;
+      entry.translationLang = this.targetLanguage;
       this.saveSession();
 
       if (transTextEl) {
@@ -1477,6 +1609,8 @@ class CharlyApp {
       if (btn) {
         btn.classList.add('active');
         if (textSpan) textSpan.textContent = 'Masquer';
+        const flagSpan = btn.querySelector('.btn-translate-flag');
+        if (flagSpan) flagSpan.textContent = langInfo.flag;
       }
       this.scrollToBottom();
       this.syncPipContent();
@@ -1493,11 +1627,12 @@ class CharlyApp {
     localStorage.setItem('charly_auto_translate', this.autoTranslate.toString());
     this.updateTranslateToggleUI();
 
+    const langInfo = this.getTargetLangInfo();
     if (this.autoTranslate) {
-      this.showToast("Traduction directe activée (🇺🇦 Ukrainien)");
-      // Traduire les dernières entrées visibles non encore traduites
-      const untranslated = this.transcripts.slice(-4).filter((t) => !t.translation);
-      untranslated.forEach((entry) => this.translateEntry(entry.id));
+      this.showToast(`Traduction directe activée (${langInfo.flag} ${langInfo.label})`);
+      // Traduire les dernières entrées visibles non encore traduites dans la langue cible
+      const untranslated = this.transcripts.slice(-4).filter((t) => !t.translation || t.translationLang !== this.targetLanguage);
+      untranslated.forEach((entry) => this.translateEntry(entry.id, true));
     } else {
       this.showToast("Traduction directe mise en veille");
     }
@@ -1566,8 +1701,9 @@ class CharlyApp {
     tooltip.style.top = `${tooltipY}px`;
     tooltip.style.display = 'block';
 
+    const langInfo = this.getTargetLangInfo();
     this.dom.tooltipSource.textContent = `« ${text} »`;
-    this.dom.tooltipResult.innerHTML = `<span class="translation-loading"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="spin-anim"><circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 0 1 10 10"/></svg> Traduction...</span>`;
+    this.dom.tooltipResult.innerHTML = `<span class="translation-loading"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="spin-anim"><circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 0 1 10 10"/></svg> Traduction ${langInfo.adjective}...</span>`;
 
     try {
       const srcLang = (this.language || 'fr-FR').split('-')[0];
@@ -1644,7 +1780,8 @@ class CharlyApp {
       .map((t) => {
         let str = `[${t.timestamp}] ${t.text}`;
         if (t.translation) {
-          str += `\n  └ 🇺🇦 UA: ${t.translation}`;
+          const entryLang = t.translationLang ? this.getTargetLangInfo(t.translationLang) : this.getTargetLangInfo();
+          str += `\n  └ ${entryLang.flag} ${entryLang.code.toUpperCase()}: ${t.translation}`;
         }
         return str;
       })
@@ -1688,7 +1825,8 @@ class CharlyApp {
       ...this.transcripts.map((t) => {
         let str = `[${t.timestamp}] ${t.text}`;
         if (t.translation) {
-          str += `\n   └ 🇺🇦 UA: ${t.translation}`;
+          const entryLang = t.translationLang ? this.getTargetLangInfo(t.translationLang) : this.getTargetLangInfo();
+          str += `\n   └ ${entryLang.flag} ${entryLang.code.toUpperCase()}: ${t.translation}`;
         }
         return str;
       }),
@@ -1764,15 +1902,17 @@ class CharlyApp {
     this.geminiApiKey = this.dom.geminiApiKeyInput.value.trim();
     this.selectedMicId = this.dom.micDeviceSelect.value;
     this.language = this.dom.languageSelect.value;
-    if (this.dom.targetLanguageSelect) {
-      this.targetLanguage = this.dom.targetLanguageSelect.value;
-      localStorage.setItem('charly_target_lang', this.targetLanguage);
-    }
+    
     if (this.dom.autoTranslateCheckbox) {
       this.autoTranslate = this.dom.autoTranslateCheckbox.checked;
       localStorage.setItem('charly_auto_translate', this.autoTranslate.toString());
       this.updateTranslateToggleUI();
     }
+
+    if (this.dom.targetLanguageSelect) {
+      await this.setTargetLanguage(this.dom.targetLanguageSelect.value);
+    }
+    
     this.enableWakeLock = this.dom.wakeLockCheckbox.checked;
 
     localStorage.setItem('charly_engine', this.selectedEngine);
