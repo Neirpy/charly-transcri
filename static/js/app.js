@@ -499,7 +499,6 @@ class CharlyApp {
       const entryLang = t.translationLang ? this.getTargetLangInfo(t.translationLang) : currentLangInfo;
       html += `
         <div style="background:rgba(255,255,255,0.05); padding:6px 10px; border-radius:8px; border-left:3px solid var(--accent-primary, #38bdf8); margin-bottom:4px;">
-          <small style="color:var(--accent-primary, #38bdf8); font-family:monospace;">[${t.timestamp}]</small>
           <div style="font-weight:500;">${this.escapeHtml(t.text)}</div>
           ${t.translation ? `<div style="margin-top:4px; font-size:0.9em; color:#ffd700; border-top:1px dashed rgba(255,255,255,0.1); padding-top:2px;">${entryLang.flag} ${this.escapeHtml(t.translation)}</div>` : ''}
         </div>
@@ -610,7 +609,7 @@ class CharlyApp {
       ctx.font = 'bold 18px sans-serif';
 
       lastEntries.forEach((entry) => {
-        const text = `[${entry.timestamp}] ${entry.text}`;
+        const text = entry.text;
         ctx.fillStyle = '#f8fafc';
         this.wrapCanvasText(ctx, text, 16, y, w - 32, 22);
         y += 35;
@@ -1314,7 +1313,7 @@ class CharlyApp {
     const entryEl = document.createElement('article');
     entryEl.className = 'transcript-entry';
     entryEl.setAttribute('role', 'region');
-    entryEl.setAttribute('aria-label', `Prise de parole à ${entry.timestamp}`);
+    entryEl.setAttribute('aria-label', 'Prise de parole');
     entryEl.id = `entry-${entry.id}`;
     entryEl.dataset.id = entry.id;
 
@@ -1323,7 +1322,6 @@ class CharlyApp {
     const entryLang = entry.translationLang ? this.getTargetLangInfo(entry.translationLang) : currentLang;
 
     entryEl.innerHTML = `
-      <span class="timestamp" aria-hidden="true">${entry.timestamp}</span>
       <div class="entry-body">
         <div class="entry-main-row">
           <p class="entry-text">${this.escapeHtml(entry.text)}</p>
@@ -1778,7 +1776,7 @@ class CharlyApp {
 
     const fullText = this.transcripts
       .map((t) => {
-        let str = `[${t.timestamp}] ${t.text}`;
+        let str = t.text;
         if (t.translation) {
           const entryLang = t.translationLang ? this.getTargetLangInfo(t.translationLang) : this.getTargetLangInfo();
           str += `\n  └ ${entryLang.flag} ${entryLang.code.toUpperCase()}: ${t.translation}`;
@@ -1823,7 +1821,7 @@ class CharlyApp {
       `CHARLY TRANSCRI - TRANSCRIPTION DU ${dateStr} à ${now.toTimeString().slice(0, 8)}`,
       "============================================================\n",
       ...this.transcripts.map((t) => {
-        let str = `[${t.timestamp}] ${t.text}`;
+        let str = t.text;
         if (t.translation) {
           const entryLang = t.translationLang ? this.getTargetLangInfo(t.translationLang) : this.getTargetLangInfo();
           str += `\n   └ ${entryLang.flag} ${entryLang.code.toUpperCase()}: ${t.translation}`;

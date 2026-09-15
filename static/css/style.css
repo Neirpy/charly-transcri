@@ -416,16 +416,7 @@ body {
 }
 
 .timestamp {
-  font-family: var(--font-family-mono);
-  font-size: calc(var(--transcript-font-size) * 0.65);
-  font-weight: 600;
-  color: var(--timestamp-color);
-  background: var(--bg-tertiary);
-  padding: 3px 8px;
-  border-radius: 6px;
-  white-space: nowrap;
-  user-select: none;
-  margin-top: calc(var(--transcript-font-size) * 0.2);
+  display: none !important;
 }
 
 .entry-text {
